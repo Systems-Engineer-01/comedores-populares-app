@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.comedorespopulares.registro.data.model.Persona
 import com.comedorespopulares.registro.data.model.RegistroFamiliaState
+import com.comedorespopulares.registro.util.Validators
 
 /**
  * Pantalla Compose del Sprint 6: Resumen y confirmación previa al envío del Registro Familiar.
@@ -40,6 +41,14 @@ fun ResumenRegistroScreen(
 ) {
     val integrantes = familiaState.todosLosIntegrantes
     val totalIntegrantes = integrantes.size
+
+    // Pre-flight validation contra el contrato del backend Code.gs
+    val erroresValidacion: List<String> = remember(familiaState) {
+        integrantes.mapNotNull { persona ->
+            Validators.validarParaBackend(persona)
+        }
+    }
+    val hayErroresPreflight = erroresValidacion.isNotEmpty()
 
     Scaffold(
         topBar = {
@@ -100,8 +109,46 @@ fun ResumenRegistroScreen(
                     }
                 }
 
-                // Banner de error en caso de fallo durante el envío secuencial
-                AnimatedVisibility(visible = errorMessage != null) {
+                // Banner de validación pre-flight (Sprint 7)
+                AnimatedVisibility(visible = hayErroresPreflight) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Error,
+                                    contentDescription = "Error de validación",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "Atención: Hay datos incompletos antes de enviar al backend:",
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            for (err in erroresValidacion) {
+                                Text(
+                                    text = "• $err",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.padding(start = 8.dp, bottom = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Banner de error en caso de fallo de red durante el envío secuencial
+                AnimatedVisibility(visible = errorMessage != null && !hayErroresPreflight) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -145,7 +192,7 @@ fun ResumenRegistroScreen(
                 // Botón Enviar al Backend
                 Button(
                     onClick = onEnviarClick,
-                    enabled = !isEnviando && totalIntegrantes > 0,
+                    enabled = !isEnviando && totalIntegrantes > 0 && !hayErroresPreflight,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(54.dp),

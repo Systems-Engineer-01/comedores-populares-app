@@ -72,13 +72,17 @@ fun CapturaDniAnversoScreen(
 
     var mostrarCamaraDirecta by remember { mutableStateOf(false) }
 
+    var permisoCamaraDenegado by remember { mutableStateOf(false) }
+
     // Launcher de permisos de cámara
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { concedido ->
         if (concedido) {
+            permisoCamaraDenegado = false
             mostrarCamaraDirecta = true
         } else {
+            permisoCamaraDenegado = true
             Toast.makeText(
                 context,
                 "Se requiere permiso de cámara para tomar fotos del DNI",
@@ -141,12 +145,22 @@ fun CapturaDniAnversoScreen(
                 // Pantalla Principal de Captura y Edición
                 FormularioCapturaAnversoContent(
                     state = state,
+                    permisoCamaraDenegado = permisoCamaraDenegado,
+                    onAbrirAjustesClick = {
+                        val intent = android.content.Intent(
+                            android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                        ).apply {
+                            data = Uri.fromParts("package", context.packageName, null)
+                        }
+                        context.startActivity(intent)
+                    },
                     onTomarFotoClick = {
                         val tienePermiso = ContextCompat.checkSelfPermission(
                             context, Manifest.permission.CAMERA
                         ) == PackageManager.PERMISSION_GRANTED
 
                         if (tienePermiso) {
+                            permisoCamaraDenegado = false
                             mostrarCamaraDirecta = true
                         } else {
                             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
@@ -156,6 +170,9 @@ fun CapturaDniAnversoScreen(
                         galleryLauncher.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )
+                    },
+                    onReintentarExtraccionClick = {
+                        viewModel.reintentarExtraccionAnverso(context)
                     },
                     onDniChange = viewModel::onDniChange,
                     onApellidoPaternoChange = viewModel::onApellidoPaternoChange,
@@ -207,8 +224,11 @@ fun CapturaDniAnversoScreen(
 @Composable
 private fun FormularioCapturaAnversoContent(
     state: CapturaDniAnversoUiState,
+    permisoCamaraDenegado: Boolean,
+    onAbrirAjustesClick: () -> Unit,
     onTomarFotoClick: () -> Unit,
     onSeleccionarGaleriaClick: () -> Unit,
+    onReintentarExtraccionClick: () -> Unit,
     onDniChange: (String) -> Unit,
     onApellidoPaternoChange: (String) -> Unit,
     onApellidoMaternoChange: (String) -> Unit,
@@ -224,6 +244,47 @@ private fun FormularioCapturaAnversoContent(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Banner explicativo si el permiso de cámara fue denegado (Sprint 7)
+        AnimatedVisibility(visible = permisoCamaraDenegado) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.NoPhotography,
+                            contentDescription = "Permiso Denegado",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Permiso de cámara denegado. Se requiere para tomar fotos del DNI directamente.",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = onAbrirAjustesClick,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Abrir Ajustes de la App")
+                    }
+                }
+            }
+        }
+
         // Tarjeta de captura de foto
         Card(
             modifier = Modifier
@@ -284,7 +345,7 @@ private fun FormularioCapturaAnversoContent(
             }
         }
 
-        // Banner de Advertencia si la confianza es baja o falló la extracción
+        // Banner de Advertencia/Error con opciones de Reintento (Sprint 7)
         AnimatedVisibility(visible = state.requiereRevisionVisual || state.advertencia != null || state.errorMessage != null) {
             Card(
                 modifier = Modifier
@@ -301,27 +362,54 @@ private fun FormularioCapturaAnversoContent(
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = "Advertencia",
-                        tint = if (state.errorMessage != null) MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.size(28.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = state.errorMessage
-                            ?: state.advertencia
-                            ?: "Confianza baja o campos incompletos. Revise y corrija los datos resaltados antes de continuar.",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (state.errorMessage != null) MaterialTheme.colorScheme.onErrorContainer
-                        else MaterialTheme.colorScheme.onSurface
-                    )
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "Advertencia",
+                            tint = if (state.errorMessage != null) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = state.errorMessage
+                                ?: state.advertencia
+                                ?: "Foto borrosa u oscura - sugerimos repetir la foto o corregir manualmente los datos.",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (state.errorMessage != null) MaterialTheme.colorScheme.onErrorContainer
+                            else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        if (state.ultimaImagenAnversoUri != null) {
+                            OutlinedButton(
+                                onClick = onReintentarExtraccionClick,
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Reintentar Extracción", fontSize = 12.sp)
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+
+                        Button(
+                            onClick = onTomarFotoClick,
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Reintentar Foto", fontSize = 12.sp)
+                        }
+                    }
                 }
             }
         }

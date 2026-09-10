@@ -89,6 +89,10 @@ data class RegistroSociaUiState(
     val resultadosEnvioBackend: List<ResultadoEnvioPersona> = emptyList(),
     val envioExitosoCompletado: Boolean = false,
 
+    // ───── IMÁGENES CAPTURADAS PARA REINTENTOS (Sprint 7) ─────
+    val ultimaImagenAnversoUri: Uri? = null,
+    val ultimaImagenReversoUri: Uri? = null,
+
     // Estado Global Familiar
     val familiaState: RegistroFamiliaState = RegistroFamiliaState(idFamilia = idFamilia)
 ) {
@@ -154,7 +158,8 @@ class RegistroSociaViewModel(
                 it.copy(
                     isLoadingAnverso = true,
                     errorMessageAnverso = null,
-                    advertenciaAnverso = null
+                    advertenciaAnverso = null,
+                    ultimaImagenAnversoUri = uri
                 )
             }
 
@@ -162,7 +167,7 @@ class RegistroSociaViewModel(
 
             resultado.onSuccess { datos ->
                 val advertenciaTexto = if (datos.confianza == "baja") {
-                    "Confianza de lectura baja. Por favor verifique los campos resaltados."
+                    "Confianza de lectura baja. Por favor verifique o repita la foto si está borrosa u oscura."
                 } else null
 
                 _uiState.update { current ->
@@ -184,10 +189,17 @@ class RegistroSociaViewModel(
                         isLoadingAnverso = false,
                         errorMessageAnverso = "Error al procesar el anverso con Gemini: ${exception.localizedMessage ?: "Error desconocido"}.",
                         confianzaAnverso = "baja",
-                        advertenciaAnverso = "Por favor ingrese los datos a mano."
+                        advertenciaAnverso = "Error de conexión o lectura. Puede reintentar la extracción o ingresar datos a mano."
                     )
                 }
             }
+        }
+    }
+
+    fun reintentarExtraccionAnverso(context: Context) {
+        val uri = _uiState.value.ultimaImagenAnversoUri
+        if (uri != null) {
+            procesarImagenDniAnverso(context, uri)
         }
     }
 
@@ -244,7 +256,8 @@ class RegistroSociaViewModel(
                 it.copy(
                     isLoadingReverso = true,
                     errorMessageReverso = null,
-                    advertenciaReverso = null
+                    advertenciaReverso = null,
+                    ultimaImagenReversoUri = uri
                 )
             }
 
@@ -252,7 +265,7 @@ class RegistroSociaViewModel(
 
             resultado.onSuccess { datos ->
                 val advertenciaTexto = if (datos.confianza == "baja") {
-                    "Confianza de lectura baja en reverso. Verifique la dirección y distrito."
+                    "Confianza de lectura baja en reverso. Verifique la dirección y distrito o repita la foto."
                 } else null
 
                 val cpMapeado = DatosDniReverso.mapearCentroPoblado(datos.direccion)
@@ -276,10 +289,17 @@ class RegistroSociaViewModel(
                         isLoadingReverso = false,
                         errorMessageReverso = "Error al procesar el reverso con Gemini: ${exception.localizedMessage ?: "Error desconocido"}.",
                         confianzaReverso = "baja",
-                        advertenciaReverso = "Por favor ingrese la dirección y distrito a mano."
+                        advertenciaReverso = "Error de conexión o lectura. Puede reintentar la extracción o ingresar la dirección a mano."
                     )
                 }
             }
+        }
+    }
+
+    fun reintentarExtraccionReverso(context: Context) {
+        val uri = _uiState.value.ultimaImagenReversoUri
+        if (uri != null) {
+            procesarImagenDniReverso(context, uri)
         }
     }
 

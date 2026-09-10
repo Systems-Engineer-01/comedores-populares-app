@@ -41,4 +41,19 @@ object Validators {
         if (!noEstaVacio(distrito)) return "Falta Distrito"
         return null
     }
+
+    /**
+     * Espejo de la función `validar(data)` de /backend/Code.gs para pre-validar
+     * personas antes de iniciar el envío secuencial.
+     * @return null si es válido, o mensaje de error formateado.
+     */
+    fun validarParaBackend(persona: com.comedorespopulares.registro.data.model.Persona): String? {
+        if (!esDniValido(persona.dni)) return "${persona.rol}: DNI inválido (debe tener 8 dígitos numericos)"
+        if (!noEstaVacio(persona.apellidoPaterno)) return "${persona.rol}: Falta Apellido Paterno"
+        if (!noEstaVacio(persona.nombres)) return "${persona.rol}: Faltan Nombres"
+        if (!esTipoBeneficiarioValido(persona.tipoBeneficiario)) return "${persona.rol}: Tipo de Beneficiario inválido (${persona.tipoBeneficiario})"
+        if (!noEstaVacio(persona.direccion)) return "${persona.rol}: Falta Dirección"
+        if (!noEstaVacio(persona.distrito)) return "${persona.rol}: Falta Distrito"
+        return null
+    }
 }
