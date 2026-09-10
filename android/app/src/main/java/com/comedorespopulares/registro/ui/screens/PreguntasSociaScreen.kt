@@ -76,6 +76,68 @@ fun PreguntasSociaScreen(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
+            // Diálogo de confirmación manual si no se pudo leer la fecha de nacimiento
+            if (state.edadIndeterminada) {
+                AlertDialog(
+                    onDismissRequest = { /* Debe responder obligatoriamente */ },
+                    title = { Text("Confirmar Edad del Titular", fontWeight = FontWeight.Bold) },
+                    text = {
+                        Text("No pudimos leer la fecha de nacimiento del DNI. ¿Esta persona tiene 60 años o más?")
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = { viewModel.setTipoBeneficiarioManualmente("3") }
+                        ) {
+                            Text("Sí (60+ años — Caso Social)")
+                        }
+                    },
+                    dismissButton = {
+                        OutlinedButton(
+                            onClick = { viewModel.setTipoBeneficiarioManualmente("1") }
+                        ) {
+                            Text("No (Menor a 60 años — Socia)")
+                        }
+                    }
+                )
+            }
+
+            // Card informativa de Tipo de Beneficiario Asignado (Sprint 8 Update)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (state.tipoBeneficiario == "3") Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ChildFriendly,
+                        contentDescription = null,
+                        tint = if (state.tipoBeneficiario == "3") Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = if (state.tipoBeneficiario == "3") "Caso Social (Adulto Mayor 60+)" else "Socia (Titular < 60 años)",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = if (state.tipoBeneficiario == "3") Color(0xFF1B5E20) else MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (state.tipoBeneficiario == "3") "Tipo de Beneficiario: 3 (Calculado automáticamente por edad)" else "Tipo de Beneficiario: 1 (Calculado automáticamente por edad)",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             // Tarjeta Pregunta 1: Gestante
             Card(
                 modifier = Modifier

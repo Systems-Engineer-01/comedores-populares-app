@@ -279,12 +279,24 @@ private fun TarjetaIntegranteResumen(
                     )
                 }
 
+                val labelTipo = when (persona.tipoBeneficiario) {
+                    "1" -> "Tipo 1 — Socia"
+                    "3" -> "Tipo 3 — Caso Social (Adulto Mayor)"
+                    else -> "Tipo 2 — Usuario"
+                }
+
+                val colorTipo = when (persona.tipoBeneficiario) {
+                    "1" -> MaterialTheme.colorScheme.primary
+                    "3" -> Color(0xFF2E7D32)
+                    else -> MaterialTheme.colorScheme.secondary
+                }
+
                 Surface(
-                    color = if (persona.tipoBeneficiario == "1") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                    color = colorTipo,
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
-                        text = "Tipo ${persona.tipoBeneficiario}",
+                        text = labelTipo,
                         color = Color.White,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,

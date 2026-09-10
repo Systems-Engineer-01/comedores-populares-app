@@ -16,9 +16,9 @@ object Validators {
         return valor.isNotBlank()
     }
 
-    /** Verifica que el tipo de beneficiario sea "1" o "2". */
+    /** Verifica que el tipo de beneficiario sea "1", "2" o "3". */
     fun esTipoBeneficiarioValido(tipo: String): Boolean {
-        return tipo == "1" || tipo == "2"
+        return tipo == "1" || tipo == "2" || tipo == "3"
     }
 
     /**

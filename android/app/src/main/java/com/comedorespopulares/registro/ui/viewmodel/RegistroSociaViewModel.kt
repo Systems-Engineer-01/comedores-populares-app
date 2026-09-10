@@ -11,6 +11,7 @@ import com.comedorespopulares.registro.data.model.Persona
 import com.comedorespopulares.registro.data.model.RegistroFamiliaState
 import com.comedorespopulares.registro.data.remote.BackendClient
 import com.comedorespopulares.registro.data.remote.ResultadoEnvioPersona
+import com.comedorespopulares.registro.util.CalculoTipoBeneficiario
 import com.comedorespopulares.registro.util.Validators
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,12 +28,14 @@ data class RegistroSociaUiState(
     // ID único de familia para Interno_Control (Sprint 4)
     val idFamilia: String = RegistroFamiliaState.generarNuevoIdFamilia(),
 
-    // ───── ANVERSO SOCIA (Sprint 2) ─────
+    // ───── ANVERSO SOCIA (Sprint 2 & Update Tipo 3) ─────
     val dni: String = "",
     val apellidoPaterno: String = "",
     val apellidoMaterno: String = "",
     val nombres: String = "",
     val sexo: String = "F",              // Por definición del rol Socia
+    val fechaNacimiento: String = "",    // DD/MM/AAAA
+    val edadIndeterminada: Boolean = false, // true si no se pudo leer la fecha de nacimiento
     val confianzaAnverso: String = "alta",
     val isLoadingAnverso: Boolean = false,
     val errorMessageAnverso: String? = null,
@@ -56,8 +59,8 @@ data class RegistroSociaUiState(
     val advertenciaReverso: String? = null,
     val pasoReversoCompletado: Boolean = false,
 
-    // ───── TIPO BENEFICIARIO SOCIA (Sprint 3) ─────
-    val tipoBeneficiario: String = "1",   // Fijado automáticamente en "1" (Socia, PRD secc 2 paso 5)
+    // ───── TIPO BENEFICIARIO SOCIA (Sprint 3 & Update Caso Social) ─────
+    val tipoBeneficiario: String = "1",   // "1" = Socia (<60 años), "3" = Caso Social (adulto mayor, >=60 años)
 
     // ───── ESTADO CIVIL Y PAREJA (Sprint 4) ─────
     val estadoCivilDeclarado: String = "",
@@ -170,6 +173,8 @@ class RegistroSociaViewModel(
                     "Confianza de lectura baja. Por favor verifique o repita la foto si está borrosa u oscura."
                 } else null
 
+                val resultadoTipo = CalculoTipoBeneficiario.calcularTipoBeneficiario(datos.fechaNacimiento)
+
                 _uiState.update { current ->
                     current.copy(
                         dni = datos.dni,
@@ -177,6 +182,9 @@ class RegistroSociaViewModel(
                         apellidoMaterno = datos.apellidoMaterno,
                         nombres = datos.nombres,
                         sexo = if (datos.sexo.isNotBlank()) datos.sexo else "F",
+                        fechaNacimiento = datos.fechaNacimiento,
+                        tipoBeneficiario = resultadoTipo.tipoBeneficiario,
+                        edadIndeterminada = resultadoTipo.edadIndeterminada,
                         confianzaAnverso = datos.confianza,
                         isLoadingAnverso = false,
                         advertenciaAnverso = advertenciaTexto,
@@ -224,12 +232,27 @@ class RegistroSociaViewModel(
         _uiState.update { it.copy(sexo = nuevoSexo.uppercase().take(1)) }
     }
 
+    fun onFechaNacimientoChange(nuevaFecha: String) {
+        val resultadoTipo = CalculoTipoBeneficiario.calcularTipoBeneficiario(nuevaFecha)
+        _uiState.update {
+            it.copy(
+                fechaNacimiento = nuevaFecha,
+                tipoBeneficiario = resultadoTipo.tipoBeneficiario,
+                edadIndeterminada = resultadoTipo.edadIndeterminada
+            )
+        }
+    }
+
+    fun setTipoBeneficiarioManualmente(tipo: String) {
+        _uiState.update { it.copy(tipoBeneficiario = tipo, edadIndeterminada = false) }
+    }
+
     fun confirmarDatosAnverso() {
         if (!_uiState.value.esAnversoValido) return
         _uiState.update { it.copy(pasoAnversoCompletado = true) }
     }
 
-    // ───── SPRINT 3: PREGUNTAS SOCIA (GESTANTE / DISCAPACIDAD) ─────
+    // ───── SPRINT 3: PREGUNTAS SOCIA / CASO SOCIAL (GESTANTE / DISCAPACIDAD) ─────
 
     fun setGestante(esGestante: Boolean) {
         _uiState.update { it.copy(esGestante = esGestante) }
@@ -242,7 +265,6 @@ class RegistroSociaViewModel(
     fun confirmarPreguntasSocia() {
         _uiState.update {
             it.copy(
-                tipoBeneficiario = "1", // Automático para la Socia (PRD Sección 2 Paso 5)
                 pasoPreguntasCompletado = true
             )
         }
@@ -324,6 +346,9 @@ class RegistroSociaViewModel(
     fun confirmarDatosReverso() {
         if (!_uiState.value.esReversoValido) return
 
+        val tipoCalc = _uiState.value.tipoBeneficiario
+        val rolTitular = if (tipoCalc == "3") "Caso Social" else "Socia"
+
         val sociaPersona = Persona(
             dni = _uiState.value.dni,
             apellidoPaterno = _uiState.value.apellidoPaterno,
@@ -334,8 +359,8 @@ class RegistroSociaViewModel(
             discapacidad = if (_uiState.value.tieneDiscapacidad) "Sí" else "No",
             direccion = _uiState.value.direccion,
             distrito = _uiState.value.distrito,
-            tipoBeneficiario = "1",
-            rol = "Socia"
+            tipoBeneficiario = tipoCalc,
+            rol = rolTitular
         )
 
         _uiState.update { current ->

@@ -26,10 +26,11 @@ class ValidatorsTest {
     }
 
     @Test
-    fun `esTipoBeneficiarioValido acepta solo 1 o 2`() {
+    fun `esTipoBeneficiarioValido acepta 1 2 y 3`() {
         assertTrue(Validators.esTipoBeneficiarioValido("1"))
         assertTrue(Validators.esTipoBeneficiarioValido("2"))
-        assertFalse(Validators.esTipoBeneficiarioValido("3"))
+        assertTrue(Validators.esTipoBeneficiarioValido("3"))
+        assertFalse(Validators.esTipoBeneficiarioValido("4"))
         assertFalse(Validators.esTipoBeneficiarioValido("0"))
     }
 

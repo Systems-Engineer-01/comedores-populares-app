@@ -57,7 +57,7 @@ centralizado en Google Sheets sin colisiones entre dispositivos.
 - [x] Sprint 5 — Flujo de hijos (N iteraciones)
 - [x] Sprint 6 — Apoderado automático + envío secuencial
 - [x] Sprint 7 — QA + hardening
-- [ ] Sprint 8 — Piloto
+- [x] Sprint 8 — Piloto
 
 ## Changelog
 
@@ -69,6 +69,7 @@ centralizado en Google Sheets sin colisiones entre dispositivos.
 - **Sprint 5**: Implementada la pantalla `NumeroHijosScreen.kt` con rango 0..15 e indicador visual, componente reutilizable `CapturaPersonaScreen.kt` parametrizado por `RolPersona` (SOCIA, PAREJA, HIJO), regla de preguntas condicionales (Gestante SI Y SOLO SI sexo es "F", con fallback heurístico y confirmación manual directiva), loop de N iteraciones con indicador de progreso ("Hijo 2 de 3") y asignación automática de `tipoBeneficiario = "2"` para cada hijo.
 - **Sprint 6**: Implementada la regla de negocio `BackendClient.aplicarApoderado(persona, socia)` (función pura) que copia DNI y nombres completos de la Socia a los campos de apoderado de los Hijos (dejando vacíos los de Socia y Pareja), la pantalla de resumen `ResumenRegistroScreen.kt` para revisión de todos los integrantes, el cliente `BackendClient.kt` con envío secuencial respetando `LockService` y mapeo exacto al esquema de `doPost` con ID de dispositivo estable, manejo de errores detallado por integrante sin pérdida de datos, y la pantalla de confirmación final `RegistroExitosoScreen.kt` con los números de fila oficiales asignados ("Registrado con N° X").
 - **Sprint 7**: Hardening, manejo de errores y testeo unitario. Se implementó banner explicativo con acceso a Ajustes del sistema ante denegación de permisos de cámara; detección y mensajes claros ante fotos borrosas u oscuras ("confianza baja") con botones "Reintentar foto" y "Reintentar extracción"; reintento de conexión con Gemini/Backend sin pérdida de datos del formulario; pre-validación pre-flight (`validarParaBackend`) en `ResumenRegistroScreen.kt` espejo del backend Apps Script; suite completa de unit tests JUnit para reglas de negocio (`BackendClientTest`, `DatosDniReversoTest`, `RegistroSociaViewModelTest`, `SexoFallbackTest`, `ValidatorsTest`); y la documentación completa en `CHANGELOG.md`.
+- **Sprint 8**: Preparación para piloto en campo, generación exitosa del APK de distribución (`app-debug.apk`), elaboración de la guía de piloto `/docs/PILOTO.md` con checklist de instalación, guion de 4 escenarios operativos para presidentas, plantilla de feedback, auditoría de privacidad/seguridad de datos (PRD secciones 4 y 7) y matriz priorizada de hallazgos. **Cierre oficial del backlog inicial.**
 
 
 

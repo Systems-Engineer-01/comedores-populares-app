@@ -88,7 +88,7 @@ dispositivo/presidenta registró qué fila, y evita exponer credenciales de Goog
 | H | Dirección completa del beneficiario |
 | I | Centro Poblado |
 | J | Distrito |
-| K | Tipo de Beneficiario (1 o 2) |
+| K | Tipo de Beneficiario (1 = Socia, 2 = Usuario, 3 = Caso Social — adulto mayor, 60+) |
 | L | DNI del Apoderado (solo hijos) |
 | M | Apellido Paterno del Apoderado |
 | N | Apellido Materno del Apoderado |

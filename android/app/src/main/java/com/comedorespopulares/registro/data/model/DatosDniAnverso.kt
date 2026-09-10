@@ -22,6 +22,11 @@ data class DatosDniAnverso(
     
     val nombres: String = "",
     val sexo: String = "",            // "M" o "F"
+
+    @SerializedName("fecha_nacimiento")
+    @SerialName("fecha_nacimiento")
+    val fechaNacimiento: String = "", // "DD/MM/AAAA"
+
     val confianza: String = "baja"     // "alta" | "media" | "baja"
 ) {
     /**

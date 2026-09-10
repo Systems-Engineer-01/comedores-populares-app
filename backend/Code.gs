@@ -21,7 +21,7 @@
  *   "discapacidad": "No",
  *   "direccion": "PARCELAY-55 CAIDA ALTA",
  *   "distrito": "LAS LOMAS",
- *   "tipo_beneficiario": "2",
+ *   "tipo_beneficiario": "1" | "2" | "3",    // 1 = Socia, 2 = Usuario, 3 = Caso Social (adulto mayor, 60+)
  *   "apoderado_dni": "02766720",
  *   "apoderado_apellido_paterno": "ROA",
  *   "apoderado_apellido_materno": "CRUZ",
@@ -95,7 +95,7 @@ function validar(data) {
   if (!data.dni || !/^\d{8}$/.test(data.dni)) return 'DNI inválido (debe tener 8 dígitos).';
   if (!data.apellido_paterno) return 'Falta Apellido Paterno.';
   if (!data.nombres) return 'Faltan Nombres.';
-  if (!['1', '2'].includes(String(data.tipo_beneficiario))) return 'Tipo de Beneficiario inválido.';
+  if (!['1', '2', '3'].includes(String(data.tipo_beneficiario))) return 'Tipo de Beneficiario inválido.';
   return null;
 }
 

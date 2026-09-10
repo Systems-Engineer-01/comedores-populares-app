@@ -16,15 +16,16 @@ con esta forma exacta:
   "apellido_materno": "string en mayúsculas",
   "nombres": "string en mayúsculas",
   "sexo": "M" o "F",
+  "fecha_nacimiento": "DD/MM/AAAA, tomada del campo impreso 'Nacimiento: Fecha y Ubigeo' del DNI. Si ese campo no es legible, usa como respaldo los primeros 6 dígitos de la segunda línea de la zona MRZ (formato AAMMDD) y conviértelos a DD/MM/AAAA asumiendo siglo 19 si AA > año actual - 2000, o siglo 20 en caso contrario.",
   "confianza": "alta" | "media" | "baja"
 }
 
 Reglas:
-- Si algún campo no se puede leer con certeza, usa "" (cadena vacía) en ese campo y baja "confianza".
+- Si algún campo no se puede leer con certeza (incluyendo "fecha_nacimiento"), usa "" (cadena vacía) en ese campo y baja "confianza" a "baja".
 - No inventes datos. No completes con suposiciones.
 - El campo "sexo" viene del recuadro "Sexo" del DNI (M/F).
 - Ignora la zona MRZ (las líneas con "<<<") si el texto impreso arriba ya es legible; úsala solo como
-  respaldo si el texto impreso está borroso.
+  respaldo para la fecha de nacimiento u otros datos si el texto impreso está borroso.
 ```
 
 ## Prompt (reverso del DNI)

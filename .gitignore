@@ -21,8 +21,9 @@ android/app/release/
 # Google Apps Script
 .clasp.json
 
-# OS
+# OS & Memory Dumps
 Thumbs.db
 .DS_Store
 *.swp
 *~
+*.hprof
