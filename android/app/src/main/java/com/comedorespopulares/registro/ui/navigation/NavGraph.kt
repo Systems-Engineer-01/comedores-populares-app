@@ -59,31 +59,42 @@ fun RegistroNavGraph(
             )
         }
 
-        // ───── Socia: formulario (pasos 2-3) ─────
+        // ───── Socia: preguntas Gestante/Discapacidad (paso 2-3 - Sprint 3) ─────
         is RegistroStep.FormularioSocia -> {
-            SociaFormScreen(
-                datosExtraidos = state.sociaAnverso,
-                onConfirmar = { dni, apP, apM, nombres, sexo, gestante, discapacidad ->
+            val sociaViewModel: com.comedorespopulares.registro.ui.viewmodel.RegistroSociaViewModel =
+                androidx.lifecycle.viewmodel.compose.viewModel()
+
+            PreguntasSociaScreen(
+                viewModel = sociaViewModel,
+                onContinuarSuccess = {
+                    val stateSocia = sociaViewModel.uiState.value
                     viewModel.confirmarDatosSocia(
-                        dni, apP, apM, nombres, sexo, gestante, discapacidad
+                        dni = stateSocia.dni,
+                        apellidoPaterno = stateSocia.apellidoPaterno,
+                        apellidoMaterno = stateSocia.apellidoMaterno,
+                        nombres = stateSocia.nombres,
+                        sexo = stateSocia.sexo,
+                        gestante = if (stateSocia.esGestante) "Sí" else "No",
+                        discapacidad = if (stateSocia.tieneDiscapacidad) "Sí" else "No"
                     )
                 },
                 modifier = modifier
             )
         }
 
-        // ───── Socia: captura reverso (paso 4) ─────
+        // ───── Socia: captura DNI reverso (paso 4 - Sprint 3) ─────
         is RegistroStep.CapturaReversoSocia -> {
-            ReversoScreen(
-                titulo = "Reverso DNI — Socia",
-                imagenUri = state.imagenActual,
-                isLoading = state.isLoading,
-                datosExtraidos = state.sociaReverso,
-                onImagenCapturada = { uri ->
-                    viewModel.procesarReverso(uri, PersonaTarget.SOCIA)
-                },
-                onConfirmar = { direccion, distrito ->
-                    viewModel.confirmarDireccionSocia(direccion, distrito)
+            val sociaViewModel: com.comedorespopulares.registro.ui.viewmodel.RegistroSociaViewModel =
+                androidx.lifecycle.viewmodel.compose.viewModel()
+
+            CapturaDniReversoScreen(
+                viewModel = sociaViewModel,
+                onConfirmarSuccess = {
+                    val stateSocia = sociaViewModel.uiState.value
+                    viewModel.confirmarDireccionSocia(
+                        direccion = stateSocia.direccion,
+                        distrito = stateSocia.distrito
+                    )
                 },
                 modifier = modifier
             )

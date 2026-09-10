@@ -7,6 +7,7 @@ import android.net.Uri
 import android.util.Base64
 import com.comedorespopulares.registro.BuildConfig
 import com.comedorespopulares.registro.data.model.DatosDniAnverso
+import com.comedorespopulares.registro.data.model.DatosDniReverso
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
@@ -63,58 +64,94 @@ class GeminiClient(
             - El campo "sexo" viene del recuadro "Sexo" del DNI (M/F).
             - Ignora la zona MRZ (las líneas con "<<<") si el texto impreso arriba ya es legible; úsala solo como respaldo si el texto impreso está borroso.
         """.trimIndent()
+
+        val PROMPT_DNI_REVERSO = """
+            Eres un extractor de datos del REVERSO de un DNI peruano. Devuelve ÚNICAMENTE este JSON:
+
+            {
+              "direccion": "string, tal como aparece en el campo 'Dirección'",
+              "distrito": "string, tal como aparece en el campo 'Distrito'",
+              "provincia": "string",
+              "departamento": "string",
+              "confianza": "alta" | "media" | "baja"
+            }
+
+            Reglas:
+            - No agregues el departamento/provincia dentro de "direccion"; van en campos separados.
+            - Si el campo no es legible, usa "" y baja "confianza".
+        """.trimIndent()
     }
 
     /**
-     * Extrae los datos del anverso del DNI a partir de una Uri local de imagen.
+     * Extrae los datos del ANVERSO del DNI a partir de una Uri local de imagen.
      * CUMPLE CON LEY N.° 29733: Elimina los datos de imagen de memoria/disco tras su uso.
      */
     suspend fun extraerDniAnverso(context: Context, uri: Uri): Result<DatosDniAnverso> =
-        withContext(Dispatchers.IO) {
-            var bitmap: Bitmap? = null
-            var byteArrayOutputStream: ByteArrayOutputStream? = null
-            var base64Image: String? = null
-
-            try {
-                // 1. Cargar bitmap y convertir a Base64 con compresión controlada
-                val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-                bitmap = BitmapFactory.decodeStream(inputStream)
-                inputStream?.close()
-
-                if (bitmap == null) {
-                    return@withContext Result.failure(Exception("No se pudo cargar la imagen del DNI"))
-                }
-
-                byteArrayOutputStream = ByteArrayOutputStream()
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, byteArrayOutputStream)
-                val bytes = byteArrayOutputStream.toByteArray()
-                base64Image = Base64.encodeToString(bytes, Base64.NO_WRAP)
-
-                // PRIVACIDAD (Ley N.° 29733): Limpiar bitmap y buffer inmediatamente
-                bitmap.recycle()
-                bitmap = null
-                byteArrayOutputStream.close()
-                byteArrayOutputStream = null
-
-                // 2. Ejecutar llamada HTTP a Gemini
-                val resultado = ejecutarLlamadaGemini(base64Image, PROMPT_DNI_ANVERSO)
-
-                // 3. Eliminar archivo de caché si fue creado temporalmente
-                limpiarArchivoTemporal(context, uri)
-
-                resultado
-            } catch (e: Exception) {
-                // Asegurar limpieza en caso de excepción
-                bitmap?.recycle()
-                limpiarArchivoTemporal(context, uri)
-                Result.failure(e)
-            }
-        }
+        extraerConGemini(context, uri, PROMPT_DNI_ANVERSO, DatosDniAnverso::class.java)
 
     /**
-     * Ejecuta la llamada HTTP REST a la API de Gemini 2.0 Flash (Visión).
+     * Extrae los datos del REVERSO del DNI a partir de una Uri local de imagen (Sprint 3).
+     * CUMPLE CON LEY N.° 29733: Elimina los datos de imagen de memoria/disco tras su uso.
      */
-    private fun ejecutarLlamadaGemini(base64Image: String, prompt: String): Result<DatosDniAnverso> {
+    suspend fun extraerDniReverso(context: Context, uri: Uri): Result<DatosDniReverso> =
+        extraerConGemini(context, uri, PROMPT_DNI_REVERSO, DatosDniReverso::class.java)
+
+    /**
+     * Reutiliza la lógica de conversión a Base64, llamada HTTP a Gemini, parseo y borrado seguro de memoria.
+     */
+    private suspend fun <T> extraerConGemini(
+        context: Context,
+        uri: Uri,
+        prompt: String,
+        targetClass: Class<T>
+    ): Result<T> = withContext(Dispatchers.IO) {
+        var bitmap: Bitmap? = null
+        var byteArrayOutputStream: ByteArrayOutputStream? = null
+        var base64Image: String? = null
+
+        try {
+            // 1. Cargar bitmap y convertir a Base64 con compresión controlada
+            val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+            bitmap = BitmapFactory.decodeStream(inputStream)
+            inputStream?.close()
+
+            if (bitmap == null) {
+                return@withContext Result.failure(Exception("No se pudo cargar la imagen del DNI"))
+            }
+
+            byteArrayOutputStream = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 85, byteArrayOutputStream)
+            val bytes = byteArrayOutputStream.toByteArray()
+            base64Image = Base64.encodeToString(bytes, Base64.NO_WRAP)
+
+            // PRIVACIDAD (Ley N.° 29733): Limpiar bitmap y buffer inmediatamente
+            bitmap.recycle()
+            bitmap = null
+            byteArrayOutputStream.close()
+            byteArrayOutputStream = null
+
+            // 2. Ejecutar llamada HTTP a Gemini
+            val resultado = ejecutarLlamadaGeminiGeneric(base64Image, prompt, targetClass)
+
+            // 3. Eliminar archivo de caché si fue creado temporalmente
+            limpiarArchivoTemporal(context, uri)
+
+            resultado
+        } catch (e: Exception) {
+            bitmap?.recycle()
+            limpiarArchivoTemporal(context, uri)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Ejecuta la llamada HTTP REST a la API de Gemini 2.0 Flash (Visión) genérica para cualquier DTO.
+     */
+    private fun <T> ejecutarLlamadaGeminiGeneric(
+        base64Image: String,
+        prompt: String,
+        targetClass: Class<T>
+    ): Result<T> {
         if (apiKey.isBlank() || apiKey == "TU_API_KEY_AQUI") {
             return Result.failure(
                 IllegalStateException(
@@ -186,8 +223,8 @@ class GeminiClient(
                 // Limpiar backticks markdown antes de parsear
                 val cleanedJson = limpiarMarkdownJson(rawText)
 
-                val datosDni = gson.fromJson(cleanedJson, DatosDniAnverso::class.java)
-                Result.success(datosDni)
+                val datosParsed = gson.fromJson(cleanedJson, targetClass)
+                Result.success(datosParsed)
             }
         } catch (e: Exception) {
             Result.failure(e)

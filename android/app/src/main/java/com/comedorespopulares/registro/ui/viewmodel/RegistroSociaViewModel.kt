@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.comedorespopulares.registro.data.GeminiClient
 import com.comedorespopulares.registro.data.model.DatosDniAnverso
+import com.comedorespopulares.registro.data.model.DatosDniReverso
 import com.comedorespopulares.registro.util.Validators
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,58 +15,92 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Estado UI de la pantalla de captura y edición de DNI Anverso de la Socia (Sprint 2).
+ * Estado completo de la Socia en el flujo de registro (Sprint 2 + Sprint 3).
  */
-data class CapturaDniAnversoUiState(
+data class RegistroSociaUiState(
+    // ───── ANVERSO (Sprint 2) ─────
     val dni: String = "",
     val apellidoPaterno: String = "",
     val apellidoMaterno: String = "",
     val nombres: String = "",
-    val sexo: String = "",
-    val confianza: String = "alta",     // "alta" | "media" | "baja"
-    val isLoading: Boolean = false,
-    val errorMessage: String? = null,
-    val advertencia: String? = null,
-    val datosConfirmados: DatosDniAnverso? = null,
-    val pasoCompletado: Boolean = false
+    val sexo: String = "F",              // Por definición del rol Socia
+    val confianzaAnverso: String = "alta",
+    val isLoadingAnverso: Boolean = false,
+    val errorMessageAnverso: String? = null,
+    val advertenciaAnverso: String? = null,
+    val pasoAnversoCompletado: Boolean = false,
+
+    // ───── PREGUNTAS (Sprint 3) ─────
+    val esGestante: Boolean = false,
+    val tieneDiscapacidad: Boolean = false,
+    val pasoPreguntasCompletado: Boolean = false,
+
+    // ───── REVERSO (Sprint 3) ─────
+    val direccion: String = "",
+    val distrito: String = "",
+    val provincia: String = "",
+    val departamento: String = "",
+    val centroPoblado: String = "",       // Replicado de direccion
+    val confianzaReverso: String = "alta",
+    val isLoadingReverso: Boolean = false,
+    val errorMessageReverso: String? = null,
+    val advertenciaReverso: String? = null,
+    val pasoReversoCompletado: Boolean = false,
+
+    // ───── TIPO BENEFICIARIO (Sprint 3) ─────
+    val tipoBeneficiario: String = "1"    // Fijado automáticamente en "1" (Socia, PRD secc 2 paso 5)
 ) {
-    /** Valida que el DNI tenga 8 dígitos (regex) y los 4 campos principales no estén vacíos */
-    val esValido: Boolean
+    /** Valida los campos del anverso */
+    val esAnversoValido: Boolean
         get() = Validators.esDniValido(dni) &&
                 Validators.noEstaVacio(apellidoPaterno) &&
                 Validators.noEstaVacio(apellidoMaterno) &&
                 Validators.noEstaVacio(nombres)
 
-    /** Indica si se debe mostrar advertencia visual (borde rojo / banner de atención) */
-    val requiereRevisionVisual: Boolean
-        get() = confianza == "baja" ||
-                !Validators.esDniValido(dni) ||
-                apellidoPaterno.isBlank() ||
-                apellidoMaterno.isBlank() ||
-                nombres.isBlank()
+    val requiereRevisionVisualAnverso: Boolean
+        get() = confianzaAnverso == "baja" || !esAnversoValido
+
+    /** Valida que los campos obligatorios del reverso (dirección y distrito) no queden vacíos */
+    val esReversoValido: Boolean
+        get() = direccion.isNotBlank() && distrito.isNotBlank()
+
+    val requiereRevisionVisualReverso: Boolean
+        get() = confianzaReverso == "baja" || !esReversoValido
+
+    // Retrocompatibilidad con nombres de campos de Sprint 2
+    val confianza: String get() = confianzaAnverso
+    val isLoading: Boolean get() = isLoadingAnverso
+    val errorMessage: String? get() = errorMessageAnverso
+    val advertencia: String? get() = advertenciaAnverso
+    val pasoCompletado: Boolean get() = pasoAnversoCompletado
+    val esValido: Boolean get() = esAnversoValido
+    val requiereRevisionVisual: Boolean get() = requiereRevisionVisualAnverso
+    val datosConfirmados: DatosDniAnverso?
+        get() = if (pasoAnversoCompletado) DatosDniAnverso(dni, apellidoPaterno, apellidoMaterno, nombres, sexo, confianzaAnverso) else null
 }
 
+// Tipo alias de retrocompatibilidad
+typealias CapturaDniAnversoUiState = RegistroSociaUiState
+
 /**
- * ViewModel para el registro de la Socia y la extracción del DNI Anverso.
- * Retiene el estado del flujo sin enviar al backend todavía (se envía al final de todo el flujo).
+ * ViewModel que administra el estado y las reglas de negocio del registro de la Socia.
  */
 class RegistroSociaViewModel(
     private val geminiClient: GeminiClient = GeminiClient()
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(CapturaDniAnversoUiState())
-    val uiState: StateFlow<CapturaDniAnversoUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(RegistroSociaUiState())
+    val uiState: StateFlow<RegistroSociaUiState> = _uiState.asStateFlow()
 
-    /**
-     * Procesa la imagen capturada/seleccionada del DNI Anverso mediante Gemini 2.0 Flash.
-     */
+    // ───── SPRINT 2: ANVERSO DNI ─────
+
     fun procesarImagenDniAnverso(context: Context, uri: Uri) {
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
-                    isLoading = true,
-                    errorMessage = null,
-                    advertencia = null
+                    isLoadingAnverso = true,
+                    errorMessageAnverso = null,
+                    advertenciaAnverso = null
                 )
             }
 
@@ -73,7 +108,7 @@ class RegistroSociaViewModel(
 
             resultado.onSuccess { datos ->
                 val advertenciaTexto = if (datos.confianza == "baja") {
-                    "Confianza de lectura baja. Por favor verifique y corrija los campos resaltados."
+                    "Confianza de lectura baja. Por favor verifique los campos resaltados."
                 } else null
 
                 _uiState.update { current ->
@@ -82,20 +117,20 @@ class RegistroSociaViewModel(
                         apellidoPaterno = datos.apellidoPaterno,
                         apellidoMaterno = datos.apellidoMaterno,
                         nombres = datos.nombres,
-                        sexo = datos.sexo,
-                        confianza = datos.confianza,
-                        isLoading = false,
-                        advertencia = advertenciaTexto,
-                        errorMessage = null
+                        sexo = if (datos.sexo.isNotBlank()) datos.sexo else "F",
+                        confianzaAnverso = datos.confianza,
+                        isLoadingAnverso = false,
+                        advertenciaAnverso = advertenciaTexto,
+                        errorMessageAnverso = null
                     )
                 }
             }.onFailure { exception ->
                 _uiState.update { current ->
                     current.copy(
-                        isLoading = false,
-                        errorMessage = "Error al procesar la foto con Gemini: ${exception.localizedMessage ?: "Error desconocido"}. Ingrese los datos manualmente.",
-                        confianza = "baja",
-                        advertencia = "No se pudo autocompletar. Por favor llene los campos a mano."
+                        isLoadingAnverso = false,
+                        errorMessageAnverso = "Error al procesar el anverso con Gemini: ${exception.localizedMessage ?: "Error desconocido"}.",
+                        confianzaAnverso = "baja",
+                        advertenciaAnverso = "Por favor ingrese los datos a mano."
                     )
                 }
             }
@@ -103,7 +138,6 @@ class RegistroSociaViewModel(
     }
 
     fun onDniChange(nuevoDni: String) {
-        // Filtrar solo dígitos y máximo 8 caracteres
         val dniFiltrado = nuevoDni.filter { it.isDigit() }.take(8)
         _uiState.update { it.copy(dni = dniFiltrado) }
     }
@@ -124,36 +158,119 @@ class RegistroSociaViewModel(
         _uiState.update { it.copy(sexo = nuevoSexo.uppercase().take(1)) }
     }
 
-    /**
-     * Guarda el resultado de este paso en el estado local del flujo
-     * (SIN enviar nada al backend todavía — ocurre al final de todo el registro de la socia).
-     */
     fun confirmarDatosAnverso() {
-        val currentState = _uiState.value
-        if (!currentState.esValido) return
+        if (!_uiState.value.esAnversoValido) return
+        _uiState.update { it.copy(pasoAnversoCompletado = true) }
+    }
 
-        val datosGuardados = DatosDniAnverso(
-            dni = currentState.dni,
-            apellidoPaterno = currentState.apellidoPaterno,
-            apellidoMaterno = currentState.apellidoMaterno,
-            nombres = currentState.nombres,
-            sexo = currentState.sexo,
-            confianza = currentState.confianza
-        )
+    // ───── SPRINT 3: PREGUNTAS (GESTANTE / DISCAPACIDAD) ─────
 
+    fun setGestante(esGestante: Boolean) {
+        _uiState.update { it.copy(esGestante = esGestante) }
+    }
+
+    fun setDiscapacidad(tieneDiscapacidad: Boolean) {
+        _uiState.update { it.copy(tieneDiscapacidad = tieneDiscapacidad) }
+    }
+
+    fun confirmarPreguntasSocia() {
         _uiState.update {
             it.copy(
-                datosConfirmados = datosGuardados,
-                pasoCompletado = true
+                tipoBeneficiario = "1", // Automático para la Socia (PRD Sección 2 Paso 5)
+                pasoPreguntasCompletado = true
             )
         }
     }
 
+    // ───── SPRINT 3: REVERSO DNI (DIRECCIÓN / DISTRITO) ─────
+
+    fun procesarImagenDniReverso(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isLoadingReverso = true,
+                    errorMessageReverso = null,
+                    advertenciaReverso = null
+                )
+            }
+
+            val resultado = geminiClient.extraerDniReverso(context, uri)
+
+            resultado.onSuccess { datos ->
+                val advertenciaTexto = if (datos.confianza == "baja") {
+                    "Confianza de lectura baja en reverso. Verifique la dirección y distrito."
+                } else null
+
+                // Aplicar regla de negocio pure function: centroPoblado = direccion
+                val cpMapeado = DatosDniReverso.mapearCentroPoblado(datos.direccion)
+
+                _uiState.update { current ->
+                    current.copy(
+                        direccion = datos.direccion,
+                        distrito = datos.distrito,
+                        provincia = datos.provincia,
+                        departamento = datos.departamento,
+                        centroPoblado = cpMapeado,
+                        confianzaReverso = datos.confianza,
+                        isLoadingReverso = false,
+                        advertenciaReverso = advertenciaTexto,
+                        errorMessageReverso = null
+                    )
+                }
+            }.onFailure { exception ->
+                _uiState.update { current ->
+                    current.copy(
+                        isLoadingReverso = false,
+                        errorMessageReverso = "Error al procesar el reverso con Gemini: ${exception.localizedMessage ?: "Error desconocido"}.",
+                        confianzaReverso = "baja",
+                        advertenciaReverso = "Por favor ingrese la dirección y distrito a mano."
+                    )
+                }
+            }
+        }
+    }
+
+    fun onDireccionChange(nuevaDireccion: String) {
+        val direccionUpper = nuevaDireccion.uppercase()
+        val cp = DatosDniReverso.mapearCentroPoblado(direccionUpper)
+        _uiState.update { it.copy(direccion = direccionUpper, centroPoblado = cp) }
+    }
+
+    fun onDistritoChange(nuevoDistrito: String) {
+        _uiState.update { it.copy(distrito = nuevoDistrito.uppercase()) }
+    }
+
+    fun onProvinciaChange(nuevaProvincia: String) {
+        _uiState.update { it.copy(provincia = nuevaProvincia.uppercase()) }
+    }
+
+    fun onDepartamentoChange(nuevoDepartamento: String) {
+        _uiState.update { it.copy(departamento = nuevoDepartamento.uppercase()) }
+    }
+
+    fun confirmarDatosReverso() {
+        if (!_uiState.value.esReversoValido) return
+        _uiState.update { it.copy(pasoReversoCompletado = true) }
+    }
+
+    // Resetters
+    fun resetPasoAnversoCompletado() {
+        _uiState.update { it.copy(pasoAnversoCompletado = false) }
+    }
+
+    fun resetPasoPreguntasCompletado() {
+        _uiState.update { it.copy(pasoPreguntasCompletado = false) }
+    }
+
+    fun resetPasoReversoCompletado() {
+        _uiState.update { it.copy(pasoReversoCompletado = false) }
+    }
+
     fun resetPasoCompletado() {
-        _uiState.update { it.copy(pasoCompletado = false) }
+        resetPasoAnversoCompletado()
     }
 
     fun reiniciarFormulario() {
-        _uiState.value = CapturaDniAnversoUiState()
+        _uiState.value = RegistroSociaUiState()
     }
 }
