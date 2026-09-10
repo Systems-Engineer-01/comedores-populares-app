@@ -100,49 +100,77 @@ fun RegistroNavGraph(
             )
         }
 
-        // ───── Estado civil (paso 6) ─────
+        // ───── Estado civil (paso 6 - Sprint 4) ─────
         is RegistroStep.EstadoCivil -> {
+            val sociaViewModel: com.comedorespopulares.registro.ui.viewmodel.RegistroSociaViewModel =
+                androidx.lifecycle.viewmodel.compose.viewModel()
+
             EstadoCivilScreen(
-                onEstadoSeleccionado = { viewModel.seleccionarEstadoCivil(it) },
+                onEstadoCivilSeleccionado = { estadoCivilFinal, tienePareja ->
+                    sociaViewModel.seleccionarEstadoCivil(estadoCivilFinal)
+                    viewModel.seleccionarEstadoCivil(estadoCivilFinal)
+                },
                 modifier = modifier
             )
         }
 
-        // ───── Pareja: captura DNI anverso (paso 7) ─────
+        // ───── Pareja: captura DNI anverso (paso 7 - Sprint 4 reutilizado) ─────
         is RegistroStep.CapturaDniAnversoPareja -> {
-            SociaDniScreen(  // Reutilizamos el mismo componente
-                imagenUri = state.imagenActual,
-                isLoading = state.isLoading,
-                onImagenCapturada = { uri ->
-                    viewModel.procesarAnverso(uri, PersonaTarget.PAREJA)
+            val sociaViewModel: com.comedorespopulares.registro.ui.viewmodel.RegistroSociaViewModel =
+                androidx.lifecycle.viewmodel.compose.viewModel()
+
+            CapturaDniAnversoScreen(
+                viewModel = sociaViewModel,
+                onConfirmarSuccess = {
+                    val stateSocia = sociaViewModel.uiState.value
+                    viewModel.confirmarDatosPareja(
+                        dni = stateSocia.dni,
+                        apellidoPaterno = stateSocia.apellidoPaterno,
+                        apellidoMaterno = stateSocia.apellidoMaterno,
+                        nombres = stateSocia.nombres,
+                        discapacidad = "No"
+                    )
                 },
                 modifier = modifier
             )
         }
 
-        // ───── Pareja: formulario (paso 8) ─────
+        // ───── Pareja: preguntas Discapacidad (paso 8 - Sprint 4 sin gestante) ─────
         is RegistroStep.FormularioPareja -> {
-            ParejaFormScreen(
-                datosExtraidos = state.parejaAnverso,
-                onConfirmar = { dni, apP, apM, nombres, discapacidad ->
-                    viewModel.confirmarDatosPareja(dni, apP, apM, nombres, discapacidad)
+            val sociaViewModel: com.comedorespopulares.registro.ui.viewmodel.RegistroSociaViewModel =
+                androidx.lifecycle.viewmodel.compose.viewModel()
+            val stateSocia by sociaViewModel.uiState.collectAsState()
+
+            PreguntasParejaScreen(
+                tieneDiscapacidad = stateSocia.parejaDiscapacidad,
+                onDiscapacidadChange = { sociaViewModel.setParejaDiscapacidad(it) },
+                onContinuar = {
+                    viewModel.confirmarDatosPareja(
+                        dni = stateSocia.dni,
+                        apellidoPaterno = stateSocia.apellidoPaterno,
+                        apellidoMaterno = stateSocia.apellidoMaterno,
+                        nombres = stateSocia.nombres,
+                        discapacidad = if (stateSocia.parejaDiscapacidad) "Sí" else "No"
+                    )
                 },
                 modifier = modifier
             )
         }
 
-        // ───── Pareja: captura reverso (paso 9) ─────
+        // ───── Pareja: captura reverso (paso 9 - Sprint 4 reutilizado) ─────
         is RegistroStep.CapturaReversoPareja -> {
-            ReversoScreen(
-                titulo = "Reverso DNI — Pareja",
-                imagenUri = state.imagenActual,
-                isLoading = state.isLoading,
-                datosExtraidos = state.parejaReverso,
-                onImagenCapturada = { uri ->
-                    viewModel.procesarReverso(uri, PersonaTarget.PAREJA)
-                },
-                onConfirmar = { direccion, distrito ->
-                    viewModel.confirmarDireccionPareja(direccion, distrito)
+            val sociaViewModel: com.comedorespopulares.registro.ui.viewmodel.RegistroSociaViewModel =
+                androidx.lifecycle.viewmodel.compose.viewModel()
+
+            CapturaDniReversoScreen(
+                viewModel = sociaViewModel,
+                onConfirmarSuccess = {
+                    val stateSocia = sociaViewModel.uiState.value
+                    sociaViewModel.confirmarDatosPareja()
+                    viewModel.confirmarDireccionPareja(
+                        direccion = stateSocia.direccion,
+                        distrito = stateSocia.distrito
+                    )
                 },
                 modifier = modifier
             )

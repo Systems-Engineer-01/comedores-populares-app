@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.comedorespopulares.registro.data.GeminiClient
 import com.comedorespopulares.registro.data.model.DatosDniAnverso
 import com.comedorespopulares.registro.data.model.DatosDniReverso
+import com.comedorespopulares.registro.data.model.Persona
+import com.comedorespopulares.registro.data.model.RegistroFamiliaState
 import com.comedorespopulares.registro.util.Validators
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,10 +17,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Estado completo de la Socia en el flujo de registro (Sprint 2 + Sprint 3).
+ * Estado completo de la Socia y la Familia en el flujo de registro (Sprint 2 + Sprint 3 + Sprint 4).
  */
 data class RegistroSociaUiState(
-    // ───── ANVERSO (Sprint 2) ─────
+    // ID único de familia para Interno_Control (Sprint 4)
+    val idFamilia: String = RegistroFamiliaState.generarNuevoIdFamilia(),
+
+    // ───── ANVERSO SOCIA (Sprint 2) ─────
     val dni: String = "",
     val apellidoPaterno: String = "",
     val apellidoMaterno: String = "",
@@ -30,12 +35,12 @@ data class RegistroSociaUiState(
     val advertenciaAnverso: String? = null,
     val pasoAnversoCompletado: Boolean = false,
 
-    // ───── PREGUNTAS (Sprint 3) ─────
+    // ───── PREGUNTAS SOCIA (Sprint 3) ─────
     val esGestante: Boolean = false,
     val tieneDiscapacidad: Boolean = false,
     val pasoPreguntasCompletado: Boolean = false,
 
-    // ───── REVERSO (Sprint 3) ─────
+    // ───── REVERSO SOCIA (Sprint 3) ─────
     val direccion: String = "",
     val distrito: String = "",
     val provincia: String = "",
@@ -47,10 +52,29 @@ data class RegistroSociaUiState(
     val advertenciaReverso: String? = null,
     val pasoReversoCompletado: Boolean = false,
 
-    // ───── TIPO BENEFICIARIO (Sprint 3) ─────
-    val tipoBeneficiario: String = "1"    // Fijado automáticamente en "1" (Socia, PRD secc 2 paso 5)
+    // ───── TIPO BENEFICIARIO SOCIA (Sprint 3) ─────
+    val tipoBeneficiario: String = "1",   // Fijado automáticamente en "1" (Socia, PRD secc 2 paso 5)
+
+    // ───── ESTADO CIVIL Y PAREJA (Sprint 4) ─────
+    val estadoCivilDeclarado: String = "",
+    val tienePareja: Boolean = false,
+    val pasoEstadoCivilCompletado: Boolean = false,
+
+    // Datos Pareja (Sprint 4)
+    val parejaDni: String = "",
+    val parejaApellidoPaterno: String = "",
+    val parejaApellidoMaterno: String = "",
+    val parejaNombres: String = "",
+    val parejaSexo: String = "M",        // Rol Pareja (varón según PRD)
+    val parejaDiscapacidad: Boolean = false,
+    val parejaDireccion: String = "",
+    val parejaDistrito: String = "",
+    val parejaTipoBeneficiario: String = "2", // Automático "2" (Usuario, PRD secc 2 paso 10)
+    val pasoParejaCompletado: Boolean = false,
+
+    // Estado Global Familiar
+    val familiaState: RegistroFamiliaState = RegistroFamiliaState(idFamilia = idFamilia)
 ) {
-    /** Valida los campos del anverso */
     val esAnversoValido: Boolean
         get() = Validators.esDniValido(dni) &&
                 Validators.noEstaVacio(apellidoPaterno) &&
@@ -60,14 +84,22 @@ data class RegistroSociaUiState(
     val requiereRevisionVisualAnverso: Boolean
         get() = confianzaAnverso == "baja" || !esAnversoValido
 
-    /** Valida que los campos obligatorios del reverso (dirección y distrito) no queden vacíos */
     val esReversoValido: Boolean
         get() = direccion.isNotBlank() && distrito.isNotBlank()
 
     val requiereRevisionVisualReverso: Boolean
         get() = confianzaReverso == "baja" || !esReversoValido
 
-    // Retrocompatibilidad con nombres de campos de Sprint 2
+    val esParejaAnversoValido: Boolean
+        get() = Validators.esDniValido(parejaDni) &&
+                Validators.noEstaVacio(parejaApellidoPaterno) &&
+                Validators.noEstaVacio(parejaApellidoMaterno) &&
+                Validators.noEstaVacio(parejaNombres)
+
+    val esParejaReversoValido: Boolean
+        get() = parejaDireccion.isNotBlank() && parejaDistrito.isNotBlank()
+
+    // Retrocompatibilidad
     val confianza: String get() = confianzaAnverso
     val isLoading: Boolean get() = isLoadingAnverso
     val errorMessage: String? get() = errorMessageAnverso
@@ -79,11 +111,8 @@ data class RegistroSociaUiState(
         get() = if (pasoAnversoCompletado) DatosDniAnverso(dni, apellidoPaterno, apellidoMaterno, nombres, sexo, confianzaAnverso) else null
 }
 
-// Tipo alias de retrocompatibilidad
-typealias CapturaDniAnversoUiState = RegistroSociaUiState
-
 /**
- * ViewModel que administra el estado y las reglas de negocio del registro de la Socia.
+ * ViewModel que administra el estado y las reglas de negocio del registro de la Socia y la Familia.
  */
 class RegistroSociaViewModel(
     private val geminiClient: GeminiClient = GeminiClient()
@@ -92,7 +121,18 @@ class RegistroSociaViewModel(
     private val _uiState = MutableStateFlow(RegistroSociaUiState())
     val uiState: StateFlow<RegistroSociaUiState> = _uiState.asStateFlow()
 
-    // ───── SPRINT 2: ANVERSO DNI ─────
+    // ───── SPRINT 4: REGLA DE NEGOCIO aislada y testable ─────
+
+    /**
+     * Evalúa si una socia activa el flujo de pareja según su estado civil declarado.
+     * Devuelve `true` para cualquier valor que NO sea "Ninguna de las anteriores" ni vacío.
+     */
+    fun tienePareja(estadoCivil: String): Boolean {
+        val limpio = estadoCivil.trim()
+        return limpio.isNotBlank() && !limpio.equals("Ninguna de las anteriores", ignoreCase = true)
+    }
+
+    // ───── SPRINT 2: ANVERSO DNI SOCIA ─────
 
     fun procesarImagenDniAnverso(context: Context, uri: Uri) {
         viewModelScope.launch {
@@ -163,7 +203,7 @@ class RegistroSociaViewModel(
         _uiState.update { it.copy(pasoAnversoCompletado = true) }
     }
 
-    // ───── SPRINT 3: PREGUNTAS (GESTANTE / DISCAPACIDAD) ─────
+    // ───── SPRINT 3: PREGUNTAS SOCIA (GESTANTE / DISCAPACIDAD) ─────
 
     fun setGestante(esGestante: Boolean) {
         _uiState.update { it.copy(esGestante = esGestante) }
@@ -182,7 +222,7 @@ class RegistroSociaViewModel(
         }
     }
 
-    // ───── SPRINT 3: REVERSO DNI (DIRECCIÓN / DISTRITO) ─────
+    // ───── SPRINT 3: REVERSO DNI SOCIA ─────
 
     fun procesarImagenDniReverso(context: Context, uri: Uri) {
         viewModelScope.launch {
@@ -201,7 +241,6 @@ class RegistroSociaViewModel(
                     "Confianza de lectura baja en reverso. Verifique la dirección y distrito."
                 } else null
 
-                // Aplicar regla de negocio pure function: centroPoblado = direccion
                 val cpMapeado = DatosDniReverso.mapearCentroPoblado(datos.direccion)
 
                 _uiState.update { current ->
@@ -250,27 +289,107 @@ class RegistroSociaViewModel(
 
     fun confirmarDatosReverso() {
         if (!_uiState.value.esReversoValido) return
-        _uiState.update { it.copy(pasoReversoCompletado = true) }
+
+        // Construir objeto Persona Socia y guardarlo en la familia
+        val sociaPersona = Persona(
+            dni = _uiState.value.dni,
+            apellidoPaterno = _uiState.value.apellidoPaterno,
+            apellidoMaterno = _uiState.value.apellidoMaterno,
+            nombres = _uiState.value.nombres,
+            sexo = _uiState.value.sexo,
+            gestante = if (_uiState.value.esGestante) "Sí" else "No",
+            discapacidad = if (_uiState.value.tieneDiscapacidad) "Sí" else "No",
+            direccion = _uiState.value.direccion,
+            distrito = _uiState.value.distrito,
+            tipoBeneficiario = "1",
+            rol = "Socia"
+        )
+
+        _uiState.update { current ->
+            current.copy(
+                pasoReversoCompletado = true,
+                familiaState = current.familiaState.copy(socia = sociaPersona)
+            )
+        }
+    }
+
+    // ───── SPRINT 4: ESTADO CIVIL Y PAREJA ─────
+
+    fun seleccionarEstadoCivil(estadoCivil: String) {
+        val activaPareja = tienePareja(estadoCivil)
+        _uiState.update { current ->
+            current.copy(
+                estadoCivilDeclarado = estadoCivil,
+                tienePareja = activaPareja,
+                pasoEstadoCivilCompletado = true,
+                familiaState = current.familiaState.copy(estadoCivilDeclarado = estadoCivil)
+            )
+        }
+    }
+
+    fun setParejaDiscapacidad(discapacidad: Boolean) {
+        _uiState.update { it.copy(parejaDiscapacidad = discapacidad) }
+    }
+
+    fun onParejaDniChange(nuevoDni: String) {
+        val dniFiltrado = nuevoDni.filter { it.isDigit() }.take(8)
+        _uiState.update { it.copy(parejaDni = dniFiltrado) }
+    }
+
+    fun onParejaApellidoPaternoChange(nuevoApellido: String) {
+        _uiState.update { it.copy(parejaApellidoPaterno = nuevoApellido.uppercase()) }
+    }
+
+    fun onParejaApellidoMaternoChange(nuevoApellido: String) {
+        _uiState.update { it.copy(parejaApellidoMaterno = nuevoApellido.uppercase()) }
+    }
+
+    fun onParejaNombresChange(nuevosNombres: String) {
+        _uiState.update { it.copy(parejaNombres = nuevosNombres.uppercase()) }
+    }
+
+    fun onParejaDireccionChange(nuevaDireccion: String) {
+        _uiState.update { it.copy(parejaDireccion = nuevaDireccion.uppercase()) }
+    }
+
+    fun onParejaDistritoChange(nuevoDistrito: String) {
+        _uiState.update { it.copy(parejaDistrito = nuevoDistrito.uppercase()) }
+    }
+
+    fun confirmarDatosPareja() {
+        val state = _uiState.value
+        val parejaPersona = Persona(
+            dni = state.parejaDni,
+            apellidoPaterno = state.parejaApellidoPaterno,
+            apellidoMaterno = state.parejaApellidoMaterno,
+            nombres = state.parejaNombres,
+            sexo = "M",                  // Varón (PRD)
+            gestante = "",               // No aplica gestante para varón
+            discapacidad = if (state.parejaDiscapacidad) "Sí" else "No",
+            direccion = state.parejaDireccion,
+            distrito = state.parejaDistrito,
+            tipoBeneficiario = "2",       // Automático "2" (Usuario, PRD secc 2 paso 10)
+            rol = "Pareja"
+        )
+
+        _uiState.update { current ->
+            current.copy(
+                pasoParejaCompletado = true,
+                familiaState = current.familiaState.copy(pareja = parejaPersona)
+            )
+        }
     }
 
     // Resetters
-    fun resetPasoAnversoCompletado() {
-        _uiState.update { it.copy(pasoAnversoCompletado = false) }
-    }
-
-    fun resetPasoPreguntasCompletado() {
-        _uiState.update { it.copy(pasoPreguntasCompletado = false) }
-    }
-
-    fun resetPasoReversoCompletado() {
-        _uiState.update { it.copy(pasoReversoCompletado = false) }
-    }
-
-    fun resetPasoCompletado() {
-        resetPasoAnversoCompletado()
-    }
+    fun resetPasoAnversoCompletado() { _uiState.update { it.copy(pasoAnversoCompletado = false) } }
+    fun resetPasoPreguntasCompletado() { _uiState.update { it.copy(pasoPreguntasCompletado = false) } }
+    fun resetPasoReversoCompletado() { _uiState.update { it.copy(pasoReversoCompletado = false) } }
+    fun resetPasoEstadoCivilCompletado() { _uiState.update { it.copy(pasoEstadoCivilCompletado = false) } }
+    fun resetPasoParejaCompletado() { _uiState.update { it.copy(pasoParejaCompletado = false) } }
+    fun resetPasoCompletado() { resetPasoAnversoCompletado() }
 
     fun reiniciarFormulario() {
-        _uiState.value = RegistroSociaUiState()
+        val nuevoId = RegistroFamiliaState.generarNuevoIdFamilia()
+        _uiState.value = RegistroSociaUiState(idFamilia = nuevoId)
     }
 }

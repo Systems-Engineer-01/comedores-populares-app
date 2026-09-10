@@ -53,7 +53,7 @@ centralizado en Google Sheets sin colisiones entre dispositivos.
 - [x] Sprint 1 — Backend Apps Script (escritura segura, sin duplicados)
 - [x] Sprint 2 — Pantalla de captura + extracción Gemini (Socia)
 - [x] Sprint 3 — Gestante/Discapacidad/Dirección
-- [ ] Sprint 4 — Estado civil + flujo de pareja
+- [x] Sprint 4 — Estado civil + flujo de pareja
 - [ ] Sprint 5 — Flujo de hijos (N iteraciones)
 - [ ] Sprint 6 — Apoderado automático
 - [ ] Sprint 7 — QA + hardening
@@ -65,5 +65,7 @@ centralizado en Google Sheets sin colisiones entre dispositivos.
 - **Sprint 1**: Backend de datos en Google Apps Script (`backend/Code.gs`) implementando `doPost`, manejo de concurrencia con `LockService`, validación de duplicados de DNI y respuesta JSON en formato Web App.
 - **Sprint 2**: Implementada la pantalla de captura `CapturaDniAnversoScreen.kt` + integración HTTP directa con Gemini Visión (`GeminiClient.kt`), parseo a `DatosDniAnverso`, campos 100% editables con pre-llenado, resaltado de advertencia visual en rojo para baja confianza y campos vacíos, validación local de DNI de 8 dígitos, retención de datos en `RegistroSociaViewModel.kt` y eliminación automática de fotos de memoria/caché tras su uso por privacidad (Ley N.° 29733).
 - **Sprint 3**: Implementada la pantalla `PreguntasSociaScreen.kt` (Gestante y Discapacidad), extracción del reverso del DNI en `CapturaDniReversoScreen.kt` llamando a `GeminiClient.extraerDniReverso`, aplicación de regla de negocio `DatosDniReverso.mapearCentroPoblado` (función pura), asignación automática de `tipoBeneficiario = "1"` y validación de dirección y distrito obligatorios.
+- **Sprint 4**: Implementada la pantalla `EstadoCivilScreen.kt` con opciones y campo libre para "Otro", aviso explícito de uso interno, función pura testeable `RegistroSociaViewModel.tienePareja(estadoCivil)`, flujo condicional reutilizando los componentes de DNI para Pareja (preguntando solo Discapacidad, sin Gestante), asignación automática de `tipoBeneficiario = "2"` y modelo de estado unificado `RegistroFamiliaState` con `idFamilia` en formato UUID.
+
 
 
