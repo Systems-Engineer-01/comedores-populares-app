@@ -1,0 +1,28 @@
+# Android
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/captures
+.externalNativeBuild/
+.cxx/
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/app/release/
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# Google Apps Script
+.clasp.json
+
+# OS
+Thumbs.db
+.DS_Store
+*.swp
+*~
