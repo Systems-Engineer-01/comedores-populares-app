@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Comedores Populares</string>
+
+    <!-- Home -->
+    <string name="home_title">Registro Digital</string>
+    <string name="home_subtitle">Comedores Populares</string>
+    <string name="btn_registrar_socia">Registrar Socia</string>
+
+    <!-- Captura DNI -->
+    <string name="captura_titulo_anverso">Foto del DNI (Anverso)</string>
+    <string name="captura_titulo_reverso">Foto del DNI (Reverso)</string>
+    <string name="btn_tomar_foto">Tomar Foto</string>
+    <string name="btn_galeria">Elegir de Galería</string>
+    <string name="procesando_imagen">Extrayendo datos del DNI…</string>
+
+    <!-- Formulario persona -->
+    <string name="label_dni">DNI</string>
+    <string name="label_apellido_paterno">Apellido Paterno</string>
+    <string name="label_apellido_materno">Apellido Materno</string>
+    <string name="label_nombres">Nombres</string>
+    <string name="label_sexo">Sexo</string>
+    <string name="label_direccion">Dirección</string>
+    <string name="label_distrito">Distrito</string>
+    <string name="label_centro_poblado">Centro Poblado</string>
+
+    <!-- Preguntas -->
+    <string name="pregunta_gestante">¿Es gestante?</string>
+    <string name="pregunta_discapacidad">¿Tiene alguna discapacidad?</string>
+    <string name="si">Sí</string>
+    <string name="no">No</string>
+
+    <!-- Estado civil -->
+    <string name="titulo_estado_civil">Estado Civil</string>
+    <string name="estado_soltera">Soltera</string>
+    <string name="estado_casada">Casada</string>
+    <string name="estado_viuda">Viuda</string>
+    <string name="estado_divorciada">Divorciada</string>
+    <string name="estado_acompanada">Acompañada</string>
+    <string name="estado_ninguna">Ninguna de las anteriores</string>
+    <string name="estado_otro">Otro</string>
+    <string name="hint_estado_otro">Especifique…</string>
+
+    <!-- Pareja -->
+    <string name="titulo_pareja">Datos del Cónyuge/Pareja</string>
+
+    <!-- Hijos -->
+    <string name="titulo_hijos">Hijos de la Socia</string>
+    <string name="pregunta_num_hijos">¿Cuántos hijos tiene?</string>
+    <string name="hijo_numero">Hijo %1$d de %2$d</string>
+    <string name="pregunta_sexo_hijo">¿El hijo/a es hombre o mujer?</string>
+
+    <!-- Resumen -->
+    <string name="titulo_resumen">Resumen del Registro</string>
+    <string name="btn_enviar_registro">Enviar Registro</string>
+    <string name="enviando_datos">Enviando datos al servidor…</string>
+
+    <!-- Resultado -->
+    <string name="registro_exitoso">¡Registro exitoso!</string>
+    <string name="registro_numero">Registrado con N° %1$d</string>
+    <string name="btn_nuevo_registro">Nuevo Registro</string>
+    <string name="error_registro">Error al registrar</string>
+    <string name="btn_reintentar">Reintentar</string>
+
+    <!-- Confianza -->
+    <string name="confianza_baja_titulo">Verificación necesaria</string>
+    <string name="confianza_baja_mensaje">Algunos datos no se pudieron leer con certeza. Por favor, revise y corrija los campos resaltados antes de continuar.</string>
+
+    <!-- General -->
+    <string name="btn_continuar">Continuar</string>
+    <string name="btn_cancelar">Cancelar</string>
+    <string name="btn_volver">Volver</string>
+    <string name="campo_obligatorio">Este campo es obligatorio</string>
+    <string name="dni_invalido">El DNI debe tener 8 dígitos</string>
+</resources>
