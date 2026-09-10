@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Estado completo de la Socia y la Familia en el flujo de registro (Sprint 2 + Sprint 3 + Sprint 4).
+ * Estado completo de la Socia y la Familia en el flujo de registro (Sprint 2 al Sprint 5).
  */
 data class RegistroSociaUiState(
     // ID único de familia para Interno_Control (Sprint 4)
@@ -71,6 +71,12 @@ data class RegistroSociaUiState(
     val parejaDistrito: String = "",
     val parejaTipoBeneficiario: String = "2", // Automático "2" (Usuario, PRD secc 2 paso 10)
     val pasoParejaCompletado: Boolean = false,
+
+    // ───── LOOP DE HIJOS (Sprint 5) ─────
+    val cantidadHijos: Int = 0,
+    val hijoIndiceActual: Int = 0,
+    val pasoCantidadHijosCompletado: Boolean = false,
+    val loopHijosCompletado: Boolean = false,
 
     // Estado Global Familiar
     val familiaState: RegistroFamiliaState = RegistroFamiliaState(idFamilia = idFamilia)
@@ -290,7 +296,6 @@ class RegistroSociaViewModel(
     fun confirmarDatosReverso() {
         if (!_uiState.value.esReversoValido) return
 
-        // Construir objeto Persona Socia y guardarlo en la familia
         val sociaPersona = Persona(
             dni = _uiState.value.dni,
             apellidoPaterno = _uiState.value.apellidoPaterno,
@@ -380,12 +385,49 @@ class RegistroSociaViewModel(
         }
     }
 
+    // ───── SPRINT 5: LOOP DE N HIJOS ─────
+
+    fun establecerCantidadHijos(cantidad: Int) {
+        _uiState.update { current ->
+            current.copy(
+                cantidadHijos = cantidad,
+                hijoIndiceActual = 0,
+                pasoCantidadHijosCompletado = true,
+                loopHijosCompletado = (cantidad == 0)
+            )
+        }
+    }
+
+    fun agregarHijoYAvanzar(hijo: Persona) {
+        _uiState.update { current ->
+            // Asegurar tipoBeneficiario = "2" automático para hijo
+            val hijoConTipo = hijo.copy(
+                tipoBeneficiario = "2",
+                rol = "Hijo"
+            )
+
+            val listaHijosActualizada = current.familiaState.hijos.toMutableList().apply {
+                add(hijoConTipo)
+            }
+
+            val siguienteIndice = current.hijoIndiceActual + 1
+            val completado = siguienteIndice >= current.cantidadHijos
+
+            current.copy(
+                hijoIndiceActual = siguienteIndice,
+                loopHijosCompletado = completado,
+                familiaState = current.familiaState.copy(hijos = listaHijosActualizada)
+            )
+        }
+    }
+
     // Resetters
     fun resetPasoAnversoCompletado() { _uiState.update { it.copy(pasoAnversoCompletado = false) } }
     fun resetPasoPreguntasCompletado() { _uiState.update { it.copy(pasoPreguntasCompletado = false) } }
     fun resetPasoReversoCompletado() { _uiState.update { it.copy(pasoReversoCompletado = false) } }
     fun resetPasoEstadoCivilCompletado() { _uiState.update { it.copy(pasoEstadoCivilCompletado = false) } }
     fun resetPasoParejaCompletado() { _uiState.update { it.copy(pasoParejaCompletado = false) } }
+    fun resetPasoCantidadHijosCompletado() { _uiState.update { it.copy(pasoCantidadHijosCompletado = false) } }
     fun resetPasoCompletado() { resetPasoAnversoCompletado() }
 
     fun reiniciarFormulario() {

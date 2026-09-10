@@ -176,59 +176,48 @@ fun RegistroNavGraph(
             )
         }
 
-        // ───── Hijos: cantidad (paso 11) ─────
+        // ───── Hijos: cantidad (paso 11 - Sprint 5) ─────
         is RegistroStep.CantidadHijos -> {
-            HijosCountScreen(
-                onCantidadConfirmada = { viewModel.establecerCantidadHijos(it) },
-                modifier = modifier
-            )
-        }
+            val sociaViewModel: com.comedorespopulares.registro.ui.viewmodel.RegistroSociaViewModel =
+                androidx.lifecycle.viewmodel.compose.viewModel()
 
-        // ───── Hijo: captura DNI anverso (paso 12a) ─────
-        is RegistroStep.CapturaDniAnversoHijo -> {
-            SociaDniScreen(  // Reutilizamos
-                imagenUri = state.imagenActual,
-                isLoading = state.isLoading,
-                onImagenCapturada = { uri ->
-                    viewModel.procesarAnverso(uri, PersonaTarget.HIJO)
+            NumeroHijosScreen(
+                onCantidadConfirmada = { cantidad ->
+                    sociaViewModel.establecerCantidadHijos(cantidad)
+                    viewModel.establecerCantidadHijos(cantidad)
                 },
                 modifier = modifier
             )
         }
 
-        // ───── Hijo: formulario (pasos 12b-12f) ─────
-        is RegistroStep.FormularioHijo -> {
-            val sexoDetectado = viewModel.determinarSexoHijo(
-                state.hijoAnversoActual?.sexo ?: "",
-                state.hijoAnversoActual?.nombres ?: ""
-            )
-            HijoFormScreen(
-                indice = step.indice,
-                totalHijos = state.cantidadHijos,
-                datosExtraidos = state.hijoAnversoActual,
-                sexoDetectado = sexoDetectado,
-                apoderadoNombre = "${state.sociaApellidoPaterno} ${state.sociaApellidoMaterno}, ${state.sociaNombres} — DNI: ${state.sociaDni}",
-                onConfirmar = { dni, apP, apM, nombres, sexo, gestante, discapacidad ->
+        // ───── Hijo: captura persona en loop de N (pasos 12a-12f - Sprint 5 reutilizado) ─────
+        is RegistroStep.CapturaDniAnversoHijo, is RegistroStep.FormularioHijo, is RegistroStep.CapturaReversoHijo -> {
+            val sociaViewModel: com.comedorespopulares.registro.ui.viewmodel.RegistroSociaViewModel =
+                androidx.lifecycle.viewmodel.compose.viewModel()
+            val stateSocia by sociaViewModel.uiState.collectAsState()
+
+            CapturaPersonaScreen(
+                viewModel = sociaViewModel,
+                rol = com.comedorespopulares.registro.data.model.RolPersona.HIJO,
+                indiceHijo = stateSocia.hijoIndiceActual,
+                totalHijos = stateSocia.cantidadHijos,
+                onPersonaCapturada = { personaHijo ->
+                    sociaViewModel.agregarHijoYAvanzar(personaHijo)
                     viewModel.confirmarDatosHijo(
-                        step.indice, dni, apP, apM, nombres, sexo, gestante, discapacidad
+                        indice = stateSocia.hijoIndiceActual,
+                        dni = personaHijo.dni,
+                        apellidoPaterno = personaHijo.apellidoPaterno,
+                        apellidoMaterno = personaHijo.apellidoMaterno,
+                        nombres = personaHijo.nombres,
+                        sexo = personaHijo.sexo,
+                        gestante = personaHijo.gestante,
+                        discapacidad = personaHijo.discapacidad
                     )
-                },
-                modifier = modifier
-            )
-        }
-
-        // ───── Hijo: captura reverso (paso 12d) ─────
-        is RegistroStep.CapturaReversoHijo -> {
-            ReversoScreen(
-                titulo = "Reverso DNI — Hijo ${step.indice + 1}",
-                imagenUri = state.imagenActual,
-                isLoading = state.isLoading,
-                datosExtraidos = state.hijoReversoActual,
-                onImagenCapturada = { uri ->
-                    viewModel.procesarReverso(uri, PersonaTarget.HIJO)
-                },
-                onConfirmar = { direccion, distrito ->
-                    viewModel.confirmarDireccionHijo(step.indice, direccion, distrito)
+                    viewModel.confirmarDireccionHijo(
+                        indice = stateSocia.hijoIndiceActual,
+                        direccion = personaHijo.direccion,
+                        distrito = personaHijo.distrito
+                    )
                 },
                 modifier = modifier
             )
