@@ -9,6 +9,8 @@ import com.comedorespopulares.registro.data.model.DatosDniAnverso
 import com.comedorespopulares.registro.data.model.DatosDniReverso
 import com.comedorespopulares.registro.data.model.Persona
 import com.comedorespopulares.registro.data.model.RegistroFamiliaState
+import com.comedorespopulares.registro.data.remote.BackendClient
+import com.comedorespopulares.registro.data.remote.ResultadoEnvioPersona
 import com.comedorespopulares.registro.util.Validators
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,8 +18,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+typealias CapturaDniAnversoUiState = RegistroSociaUiState
+
 /**
- * Estado completo de la Socia y la Familia en el flujo de registro (Sprint 2 al Sprint 5).
+ * Estado completo de la Socia y la Familia en el flujo de registro (Sprint 2 al Sprint 6).
  */
 data class RegistroSociaUiState(
     // ID único de familia para Interno_Control (Sprint 4)
@@ -78,6 +82,13 @@ data class RegistroSociaUiState(
     val pasoCantidadHijosCompletado: Boolean = false,
     val loopHijosCompletado: Boolean = false,
 
+    // ───── ENVÍO AL BACKEND (Sprint 6) ─────
+    val isEnviandoBackend: Boolean = false,
+    val progresoMensajeBackend: String? = null,
+    val errorEnvioBackend: String? = null,
+    val resultadosEnvioBackend: List<ResultadoEnvioPersona> = emptyList(),
+    val envioExitosoCompletado: Boolean = false,
+
     // Estado Global Familiar
     val familiaState: RegistroFamiliaState = RegistroFamiliaState(idFamilia = idFamilia)
 ) {
@@ -121,7 +132,8 @@ data class RegistroSociaUiState(
  * ViewModel que administra el estado y las reglas de negocio del registro de la Socia y la Familia.
  */
 class RegistroSociaViewModel(
-    private val geminiClient: GeminiClient = GeminiClient()
+    private val geminiClient: GeminiClient = GeminiClient(),
+    private val backendClient: BackendClient = BackendClient()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RegistroSociaUiState())
@@ -129,10 +141,6 @@ class RegistroSociaViewModel(
 
     // ───── SPRINT 4: REGLA DE NEGOCIO aislada y testable ─────
 
-    /**
-     * Evalúa si una socia activa el flujo de pareja según su estado civil declarado.
-     * Devuelve `true` para cualquier valor que NO sea "Ninguna de las anteriores" ni vacío.
-     */
     fun tienePareja(estadoCivil: String): Boolean {
         val limpio = estadoCivil.trim()
         return limpio.isNotBlank() && !limpio.equals("Ninguna de las anteriores", ignoreCase = true)
@@ -400,7 +408,6 @@ class RegistroSociaViewModel(
 
     fun agregarHijoYAvanzar(hijo: Persona) {
         _uiState.update { current ->
-            // Asegurar tipoBeneficiario = "2" automático para hijo
             val hijoConTipo = hijo.copy(
                 tipoBeneficiario = "2",
                 rol = "Hijo"
@@ -418,6 +425,51 @@ class RegistroSociaViewModel(
                 loopHijosCompletado = completado,
                 familiaState = current.familiaState.copy(hijos = listaHijosActualizada)
             )
+        }
+    }
+
+    // ───── SPRINT 6: ENVÍO SECUENCIAL AL BACKEND APPS SCRIPT ─────
+
+    fun enviarFamiliaAlBackend(context: Context) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isEnviandoBackend = true,
+                    progresoMensajeBackend = "Iniciando envío secuencial al backend...",
+                    errorEnvioBackend = null
+                )
+            }
+
+            val resultado = backendClient.enviarFamiliaSecuencialmente(
+                context = context,
+                familiaState = _uiState.value.familiaState,
+                onProgreso = { persona, indice, total ->
+                    _uiState.update { current ->
+                        current.copy(
+                            progresoMensajeBackend = "Enviando integrante $indice de $total (${persona.rol}: ${persona.nombres})..."
+                        )
+                    }
+                }
+            )
+
+            if (resultado.todosExitosos) {
+                _uiState.update { current ->
+                    current.copy(
+                        isEnviandoBackend = false,
+                        resultadosEnvioBackend = resultado.resultados,
+                        envioExitosoCompletado = true,
+                        errorEnvioBackend = null
+                    )
+                }
+            } else {
+                _uiState.update { current ->
+                    current.copy(
+                        isEnviandoBackend = false,
+                        errorEnvioBackend = resultado.errorGlobal,
+                        resultadosEnvioBackend = resultado.resultados
+                    )
+                }
+            }
         }
     }
 

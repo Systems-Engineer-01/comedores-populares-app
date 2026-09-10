@@ -55,7 +55,7 @@ centralizado en Google Sheets sin colisiones entre dispositivos.
 - [x] Sprint 3 — Gestante/Discapacidad/Dirección
 - [x] Sprint 4 — Estado civil + flujo de pareja
 - [x] Sprint 5 — Flujo de hijos (N iteraciones)
-- [ ] Sprint 6 — Apoderado automático
+- [x] Sprint 6 — Apoderado automático + envío secuencial
 - [ ] Sprint 7 — QA + hardening
 - [ ] Sprint 8 — Piloto
 
@@ -67,6 +67,8 @@ centralizado en Google Sheets sin colisiones entre dispositivos.
 - **Sprint 3**: Implementada la pantalla `PreguntasSociaScreen.kt` (Gestante y Discapacidad), extracción del reverso del DNI en `CapturaDniReversoScreen.kt` llamando a `GeminiClient.extraerDniReverso`, aplicación de regla de negocio `DatosDniReverso.mapearCentroPoblado` (función pura), asignación automática de `tipoBeneficiario = "1"` y validación de dirección y distrito obligatorios.
 - **Sprint 4**: Implementada la pantalla `EstadoCivilScreen.kt` con opciones y campo libre para "Otro", aviso explícito de uso interno, función pura testeable `RegistroSociaViewModel.tienePareja(estadoCivil)`, flujo condicional reutilizando los componentes de DNI para Pareja (preguntando solo Discapacidad, sin Gestante), asignación automática de `tipoBeneficiario = "2"` y modelo de estado unificado `RegistroFamiliaState` con `idFamilia` en formato UUID.
 - **Sprint 5**: Implementada la pantalla `NumeroHijosScreen.kt` con rango 0..15 e indicador visual, componente reutilizable `CapturaPersonaScreen.kt` parametrizado por `RolPersona` (SOCIA, PAREJA, HIJO), regla de preguntas condicionales (Gestante SI Y SOLO SI sexo es "F", con fallback heurístico y confirmación manual directiva), loop de N iteraciones con indicador de progreso ("Hijo 2 de 3") y asignación automática de `tipoBeneficiario = "2"` para cada hijo.
+- **Sprint 6**: Implementada la regla de negocio `BackendClient.aplicarApoderado(persona, socia)` (función pura) que copia DNI y nombres completos de la Socia a los campos de apoderado de los Hijos (dejando vacíos los de Socia y Pareja), la pantalla de resumen `ResumenRegistroScreen.kt` para revisión de todos los integrantes, el cliente `BackendClient.kt` con envío secuencial respetando `LockService` y mapeo exacto al esquema de `doPost` con ID de dispositivo estable, manejo de errores detallado por integrante sin pérdida de datos, y la pantalla de confirmación final `RegistroExitosoScreen.kt` con los números de fila oficiales asignados ("Registrado con N° X").
+
 
 
 

@@ -44,15 +44,9 @@ fun EstadoCivilScreen(
     var opcionSeleccionada by remember { mutableStateOf("") }
     var textoOtro by remember { mutableStateOf("") }
 
-    val estadoCivilFinal: String
-        get() = if (opcionSeleccionada == "Otro") textoOtro.trim().uppercase() else opcionSeleccionada
-
-    // Evaluación testeable de si la socia tiene pareja activa para el flujo condicional
-    val tienePareja: Boolean
-        get() = tieneParejaEvaluador(estadoCivilFinal)
-
-    val esFormularioValido: Boolean
-        get() = opcionSeleccionada.isNotBlank() && (opcionSeleccionada != "Otro" || textoOtro.isNotBlank())
+    val estadoCivilFinal = if (opcionSeleccionada == "Otro") textoOtro.trim().uppercase() else opcionSeleccionada
+    val tienePareja = tieneParejaEvaluador(estadoCivilFinal)
+    val esFormularioValido = opcionSeleccionada.isNotBlank() && (opcionSeleccionada != "Otro" || textoOtro.isNotBlank())
 
     Scaffold(
         topBar = {

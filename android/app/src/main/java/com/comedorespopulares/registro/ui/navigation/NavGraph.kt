@@ -2,6 +2,7 @@ package com.comedorespopulares.registro.ui.navigation
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -91,6 +92,7 @@ fun RegistroNavGraph(
                 viewModel = sociaViewModel,
                 onConfirmarSuccess = {
                     val stateSocia = sociaViewModel.uiState.value
+                    sociaViewModel.confirmarDatosReverso()
                     viewModel.confirmarDireccionSocia(
                         direccion = stateSocia.direccion,
                         distrito = stateSocia.distrito
@@ -223,18 +225,45 @@ fun RegistroNavGraph(
             )
         }
 
-        // ───── Resumen ─────
+        // ───── Resumen (Sprint 6) ─────
         is RegistroStep.Resumen -> {
-            ResumenScreen(
-                sociaDni = state.sociaDni,
-                sociaNombre = "${state.sociaApellidoPaterno} ${state.sociaApellidoMaterno}, ${state.sociaNombres}",
-                tienePareja = state.tienePareja,
-                parejaDni = state.parejaDni,
-                parejaNombre = "${state.parejaApellidoPaterno} ${state.parejaApellidoMaterno}, ${state.parejaNombres}",
-                hijos = state.hijos,
-                onEnviar = { viewModel.enviarRegistro() },
-                modifier = modifier
-            )
+            val sociaViewModel: com.comedorespopulares.registro.ui.viewmodel.RegistroSociaViewModel =
+                androidx.lifecycle.viewmodel.compose.viewModel()
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val sociaState by sociaViewModel.uiState.collectAsState()
+
+            // Asegurar que socia esté registrada en familiaState
+            LaunchedEffect(Unit) {
+                if (sociaState.familiaState.socia == null && sociaState.dni.isNotBlank()) {
+                    sociaViewModel.confirmarDatosReverso()
+                }
+            }
+
+            if (sociaState.envioExitosoCompletado) {
+                RegistroExitosoScreen(
+                    resultados = sociaState.resultadosEnvioBackend,
+                    onNuevoRegistroClick = {
+                        sociaViewModel.reiniciarFormulario()
+                        viewModel.reiniciar()
+                    },
+                    modifier = modifier
+                )
+            } else {
+                ResumenRegistroScreen(
+                    familiaState = sociaState.familiaState,
+                    isEnviando = sociaState.isEnviandoBackend,
+                    progresoMensaje = sociaState.progresoMensajeBackend,
+                    errorMessage = sociaState.errorEnvioBackend,
+                    onEnviarClick = {
+                        sociaViewModel.enviarFamiliaAlBackend(context)
+                    },
+                    onReiniciarClick = {
+                        sociaViewModel.reiniciarFormulario()
+                        viewModel.reiniciar()
+                    },
+                    modifier = modifier
+                )
+            }
         }
 
         // ───── Enviando ─────
@@ -244,21 +273,36 @@ fun RegistroNavGraph(
 
         // ───── Completado ─────
         is RegistroStep.Completado -> {
-            ResultadoScreen(
-                exitoso = true,
-                numeros = step.numeros,
-                onNuevoRegistro = { viewModel.reiniciar() },
+            val sociaViewModel: com.comedorespopulares.registro.ui.viewmodel.RegistroSociaViewModel =
+                androidx.lifecycle.viewmodel.compose.viewModel()
+            val sociaState by sociaViewModel.uiState.collectAsState()
+
+            RegistroExitosoScreen(
+                resultados = sociaState.resultadosEnvioBackend,
+                onNuevoRegistroClick = {
+                    sociaViewModel.reiniciarFormulario()
+                    viewModel.reiniciar()
+                },
                 modifier = modifier
             )
         }
 
         // ───── Error ─────
         is RegistroStep.Error -> {
+            val sociaViewModel: com.comedorespopulares.registro.ui.viewmodel.RegistroSociaViewModel =
+                androidx.lifecycle.viewmodel.compose.viewModel()
+            val context = androidx.compose.ui.platform.LocalContext.current
+
             ResultadoScreen(
                 exitoso = false,
                 errorMensaje = step.mensaje,
-                onNuevoRegistro = { viewModel.reiniciar() },
-                onReintentar = { viewModel.enviarRegistro() },
+                onNuevoRegistro = {
+                    sociaViewModel.reiniciarFormulario()
+                    viewModel.reiniciar()
+                },
+                onReintentar = {
+                    sociaViewModel.enviarFamiliaAlBackend(context)
+                },
                 modifier = modifier
             )
         }
